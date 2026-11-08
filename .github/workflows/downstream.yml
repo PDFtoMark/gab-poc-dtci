@@ -1,0 +1,68 @@
+name: Operator Workflow Complete
+
+on:
+  workflow_run:
+    workflows: ["Operator test"]
+    types: [completed]
+
+permissions:
+  actions: read
+  issues: write
+  pull-requests: write
+
+env:
+  OPP_PRODUCTION_TYPE: "k8s"
+  DUMMY_SECRET: ${{ secrets.POC_SECRET }}
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: 'Download artifact'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{github.event.workflow_run.id }},
+            });
+            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "pr"
+            })[0];
+            var download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            var fs = require('fs');
+            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
+      - run: unzip -o pr.zip -d pr_data
+      - name: 'Read PR number'
+        id: pr-number
+        run: |
+          PR=$(tr -dc [0-9] <./pr_data/NR)
+          [ -z "$PR" ] && echo "Invalid PR number" && exit 1
+          echo "pr=${PR}" >> $GITHUB_OUTPUT
+          [ -f ./pr_data/CI_YAML_ONLY ] && echo "ci_yaml_only=$(cat ./pr_data/CI_YAML_ONLY)" >> $GITHUB_OUTPUT || echo "ci_yaml_only=0" >> $GITHUB_OUTPUT
+
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        id: pr-labels
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = await github.rest.issues.listLabelsOnIssue({
+              issue_number: ${{ steps.pr-number.outputs.pr }},
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            })
+            return labels.data
+
+      - name: proof-of-rce
+        run: cat /tmp/pwned.json
+    outputs:
+      pr: "${{ steps.pr-number.outputs.pr }}"
+      ci_yaml_only: "${{ steps.pr-number.outputs.ci_yaml_only }}"
