@@ -5,28 +5,26 @@ permissions:
   issues: write
   pull-requests: write
 jobs:
-  sem:
+  outputs:
     runs-on: ubuntu-latest
     steps:
-      - name: emit outputs then fail
-        id: command
+      - name: duplicate-key-write
+        id: a
         run: |
-          echo "command-name=merge" >> $GITHUB_OUTPUT
-          echo "command-arguments=possible" >> $GITHUB_OUTPUT
-          exit 1
-      - name: conditional-no-status-fn
-        if: steps.command.outputs.command-name == 'merge' && steps.command.outputs.command-arguments == 'possible'
-        run: echo "CONDITIONAL_STEP_RAN_NO_DEFAULT_SUCCESS"
-      - name: conditional-always
-        if: always() && steps.command.outputs.command-name == 'merge'
-        run: echo "ALWAYS_RAN"
-  perm:
-    runs-on: ubuntu-latest
-    steps:
-      - name: collaborator permission endpoint with limited GITHUB_TOKEN
-        env:
-          T: ${{ secrets.GITHUB_TOKEN }}
+          printf 'pr=111\n' >> "$GITHUB_OUTPUT"
+          printf 'ci_yaml_only=%s\n' "$(printf '1\npr=111);globalThis.__PWNED=1;((0)')" >> "$GITHUB_OUTPUT"
+      - name: show-output
         run: |
-          code=$(curl -s -o resp.json -w '%{http_code}' -H "Authorization: Bearer $T" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$GITHUB_REPOSITORY/collaborators/$GITHUB_ACTOR/permission")
-          echo "HTTP_CODE=$code"
-          cat resp.json
+          echo "OUTPUT_PR=${{ steps.a.outputs.pr }}"
+          echo "OUTPUT_CI=${{ steps.a.outputs.ci_yaml_only }}"
+      - name: interpolated-js-sink
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        continue-on-error: true
+        with:
+          script: |
+            const obj = {
+              issue_number: ${{ steps.a.outputs.pr }},
+              owner: 'x',
+              repo: 'y'
+            }
+            core.info('OBJ=' + JSON.stringify(obj))
