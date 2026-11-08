@@ -24,7 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: collaborator permission endpoint with limited GITHUB_TOKEN
+        env:
+          T: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          code=$(curl -s -o resp.json -w '%{http_code}' -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$GITHUB_REPOSITORY/collaborators/$GITHUB_ACTOR/permission")
+          code=$(curl -s -o resp.json -w '%{http_code}' -H "Authorization: Bearer $T" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$GITHUB_REPOSITORY/collaborators/$GITHUB_ACTOR/permission")
           echo "HTTP_CODE=$code"
           cat resp.json
